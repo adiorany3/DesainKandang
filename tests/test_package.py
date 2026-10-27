@@ -12,6 +12,8 @@ def test_zip_contains_only_allowlisted_project_files(tmp_path):
     assert set(names) == {f"streamlit-kandang/{path}" for path in FILES}
     assert "streamlit-kandang/.env" not in names
     assert "streamlit-kandang/.streamlit/secrets.toml" not in names
+    assert "streamlit-kandang/.streamlit/config.toml" in names
+    assert "streamlit-kandang/requirements-dev.txt" in names
     assert all(".venv" not in name and "__pycache__" not in name for name in names)
     assert b"TRUST_API_KEY=\n" in contents
     secret_marker = b"Bearer " + b"REAL" + b"-PRODUCTION-KEY"
