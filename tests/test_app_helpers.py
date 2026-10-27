@@ -254,16 +254,22 @@ def test_planning_brief_is_explicit_about_unknowns_and_next_steps():
     assert any("Cooling pad belum dipilih" in item for item in brief["risks"])
 
 
-def test_get_api_key_prefers_environment(monkeypatch):
+def test_get_api_key_prefers_streamlit_secrets_over_environment(monkeypatch):
     monkeypatch.setenv("TRUST_API_KEY", "env-key")
-    monkeypatch.setattr("app.st.secrets", {"TRUST_API_KEY": "secret-key"})
-    assert get_api_key() == "env-key"
+    monkeypatch.setattr("app.st.secrets", {"TRUST_API_KEY": "  secret-key  "})
+    assert get_api_key() == "secret-key"
 
 
 def test_get_api_key_falls_back_to_streamlit_secrets(monkeypatch):
     monkeypatch.delenv("TRUST_API_KEY", raising=False)
     monkeypatch.setattr("app.st.secrets", {"TRUST_API_KEY": "secret-key"})
     assert get_api_key() == "secret-key"
+
+
+def test_get_api_key_falls_back_to_environment_if_secret_empty(monkeypatch):
+    monkeypatch.setenv("TRUST_API_KEY", "  env-key  ")
+    monkeypatch.setattr("app.st.secrets", {"TRUST_API_KEY": "   "})
+    assert get_api_key() == "env-key"
 
 
 def test_get_api_key_returns_none_when_missing_or_empty(monkeypatch):

@@ -85,6 +85,7 @@ def test_hyperrealistic_style_resets_negative_prompt():
 
 def test_generation_sends_edited_prompt(monkeypatch):
     monkeypatch.setenv("TRUST_API_KEY", "test-key")
+    monkeypatch.setattr("streamlit.secrets", {"TRUST_API_KEY": "cloud-test-key"})
     sent = []
 
     def fake_generate(prompt, api_key):
@@ -104,7 +105,7 @@ def test_generation_sends_edited_prompt(monkeypatch):
     app.button[0].click().run(timeout=10)
     assert not app.exception
     expected = "Gambar kandang sapi khusus\n\nHindari dalam gambar (negative prompt): Tanpa kabut dan tanpa kartun"
-    assert sent == [(expected, "test-key")]
+    assert sent == [(expected, "cloud-test-key")]
     assert app.code[0].value == expected
 
 
@@ -199,4 +200,5 @@ def test_generate_without_key_shows_safe_configuration_error(monkeypatch):
     app.button[0].click().run(timeout=10)
     assert not app.exception
     assert "TRUST_API_KEY belum dikonfigurasi" in app.error[0].value
+    assert "App settings → Secrets" in app.error[0].value
     assert len(app.code) == 1

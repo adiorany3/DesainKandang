@@ -371,18 +371,15 @@ def build_planning_brief(
     }
 
 def get_api_key() -> str | None:
-    """Ambil API key tanpa mencetak atau mengekspos nilainya."""
-    env_key = os.getenv("TRUST_API_KEY", "").strip()
-    if env_key:
-        return env_key
+    """Utamakan Streamlit Secrets (lokal/Cloud), lalu environment variable lokal."""
     try:
         configured_key = st.secrets.get("TRUST_API_KEY", "")
     except (FileNotFoundError, KeyError):
         configured_key = ""
-    if not isinstance(configured_key, str):
-        return None
-    secret_key = configured_key.strip()
-    return secret_key or None
+    if isinstance(configured_key, str) and configured_key.strip():
+        return configured_key.strip()
+    env_key = os.getenv("TRUST_API_KEY", "")
+    return (env_key.strip() or None) if isinstance(env_key, str) else None
 
 
 def get_nara_api_key() -> str | None:
@@ -537,8 +534,10 @@ def main() -> None:
     api_key = get_api_key()
     if not api_key:
         st.error(
-            "TRUST_API_KEY belum dikonfigurasi. Atur environment variable atau "
-            "tambahkan key ke .streamlit/secrets.toml."
+            "TRUST_API_KEY belum dikonfigurasi. Di Streamlit Community Cloud, buka "
+            "App settings → Secrets, simpan TRUST_API_KEY, ENDPOINT, dan MODEL sebagai "
+            "TOML tingkat teratas (tanpa [section]), lalu jalankan ulang aplikasi. "
+            "Untuk pengembangan lokal, gunakan .streamlit/secrets.toml atau environment variable."
         )
         return
 
@@ -552,7 +551,8 @@ def main() -> None:
                 if not nara_key:
                     raise TrustAPIError(
                         "Trust sedang bermasalah dan fallback Bynara belum tersedia: "
-                        "isi NARA_API_KEY di .streamlit/secrets.toml."
+                        "isi NARA_API_KEY di App settings → Secrets (Cloud) atau "
+                        ".streamlit/secrets.toml (lokal)."
                     ) from None
                 st.info("Trust tidak tersedia. Mencoba Bynara sebagai penyedia cadangan…")
                 image_bytes = generate_bynara_image(

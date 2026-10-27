@@ -8,6 +8,7 @@ FILES = (
     "trust_client.py",
     "build_zip.py",
     "requirements.txt",
+    "requirements-dev.txt",
     "README.md",
     ".env.example",
     ".streamlit/config.toml",

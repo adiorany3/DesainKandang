@@ -109,7 +109,8 @@ def _get_configured_endpoint(name: str) -> str:
         valid = False
     if not valid:
         raise TrustAPIError(
-            f"{name} harus berupa URL HTTPS publik yang valid di .streamlit/secrets.toml."
+            f"{name} harus berupa URL HTTPS publik yang valid di Streamlit Secrets "
+            "(App settings → Secrets di Cloud; .streamlit/secrets.toml secara lokal)."
         )
     return endpoint
 
@@ -122,14 +123,14 @@ def _is_nonpublic_ip(host: str) -> bool:
 
 
 def _get_model() -> str:
-    """Ambil nama model dari konfigurasi lokal, tanpa fallback tersembunyi."""
+    """Ambil nama model dari Streamlit Secrets, tanpa fallback tersembunyi."""
     try:
         configured = st.secrets.get("MODEL", "")
     except (FileNotFoundError, KeyError):
         configured = ""
     model = configured.strip() if isinstance(configured, str) else ""
     if not model:
-        raise TrustAPIError("MODEL harus diisi di .streamlit/secrets.toml.")
+        raise TrustAPIError("MODEL harus diisi di Streamlit Secrets (App settings → Secrets di Cloud).")
     return model
 
 
@@ -324,7 +325,7 @@ def generate_bynara_image(
         configured = ""
     model = configured.strip() if isinstance(configured, str) else ""
     if not model:
-        raise TrustAPIError("NARA_MODEL harus diisi di .streamlit/secrets.toml.")
+        raise TrustAPIError("NARA_MODEL harus diisi di Streamlit Secrets (App settings → Secrets di Cloud).")
 
     body = {
         "model": model,
