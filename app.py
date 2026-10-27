@@ -9,7 +9,10 @@ import os
 
 import streamlit as st
 
-from trust_client import TrustAPIError, TrustServiceError, generate_bynara_image, generate_image
+from trust_client import (
+    MAX_NARA_PROMPT_CHARS, TrustAPIError, TrustServiceError,
+    generate_bynara_image, generate_image,
+)
 
 
 LIVESTOCK_OPTIONS = (
@@ -391,6 +394,35 @@ def get_nara_api_key() -> str | None:
     return (configured.strip() or None) if isinstance(configured, str) else None
 
 
+def bynara_prompt(prompt: str, generated_prompt: str, length_m: float, width_m: float,
+                  livestock: str, custom_livestock: str, features: list[str], style: str) -> str:
+    """Ringkas hanya prompt bawaan yang melebihi batas Bynara; jangan potong suntingan."""
+    if len(prompt) <= MAX_NARA_PROMPT_CHARS:
+        return prompt
+    if prompt != generated_prompt:
+        raise TrustAPIError("Prompt Bynara maksimal 3500 karakter. Ringkas prompt yang Anda sunting.")
+    animal = custom_livestock.strip() if livestock == "Lainnya" else livestock
+    selected = ", ".join(features) if features else "tanpa peralatan tambahan"
+    airflow = (
+        "Cooling pad di dinding ujung masuk udara dan exhaust fan di ujung berlawanan. "
+        if "Cooling pad" in features and "Exhaust fan" in features else ""
+    )
+    security = "Ruang biosekuriti di luar dinding samping. " if "Zona biosekuriti" in features else ""
+    condensed = (
+        f"Gambar konsep kandang close house untuk {animal}, panjang {length_m:g} meter, "
+        f"lebar {width_m:g} meter (luas {length_m * width_m:g} m²). "
+        f"Bentuk dan skala sesuai dimensi. Fitur pilihan: {selected}. "
+        f"{airflow}{security}"
+        "Jalur pakan dan air terpisah; peralatan ternak di dalam. "
+        "Sediakan akses pakan dan air bersih, ruang gerak dan "
+        "istirahat yang sesuai spesies, lantai aman dan bersih, ventilasi serta cahaya wajar. "
+        "Bangunan harus dapat dibangun; hindari ternak berdesakan, peralatan melayang, "
+        "dan label dimensi palsu. "
+        f"Gaya: {style}.{STYLE_INSTRUCTIONS[style]}"
+    )
+    return condensed
+
+
 def main() -> None:
     st.set_page_config(page_title="Konsep Kandang Close House", page_icon="🐔", layout="wide")
     st.markdown(PAGE_STYLES, unsafe_allow_html=True)
@@ -534,8 +566,19 @@ def main() -> None:
         st.error(str(exc))
         return
 
+    try:
+        nara_prompt = bynara_prompt(
+            positive_prompt, generated_prompt, length_m, width_m,
+            livestock, custom_livestock, list(features), style,
+        ) if image_provider == "Bynara" else ""
+    except TrustAPIError as exc:
+        st.error(str(exc))
+        return
+
     st.subheader("Prompt yang digunakan")
-    st.code(prompt, language=None)
+    st.code(nara_prompt if image_provider == "Bynara" else prompt, language=None)
+    if image_provider == "Bynara" and negative_prompt.strip():
+        st.caption("Negative prompt dikirim sebagai parameter terpisah ke Bynara.")
     api_key = get_api_key() if image_provider == "Trust" else get_nara_api_key()
     if not api_key and image_provider == "Trust":
         st.error(
@@ -556,7 +599,7 @@ def main() -> None:
         with st.spinner("Membuat gambar konsep…"):
             if image_provider == "Bynara":
                 image_bytes = generate_bynara_image(
-                    positive_prompt, negative_prompt.strip(), api_key,
+                    nara_prompt, negative_prompt.strip(), api_key,
                 )
                 provider = "Bynara"
             else:
@@ -573,8 +616,12 @@ def main() -> None:
                             ".streamlit/secrets.toml (lokal)."
                         ) from None
                     st.info("Trust tidak tersedia. Mencoba Bynara sebagai penyedia cadangan…")
+                    nara_prompt = bynara_prompt(
+                        positive_prompt, generated_prompt, length_m, width_m,
+                        livestock, custom_livestock, list(features), style,
+                    )
                     image_bytes = generate_bynara_image(
-                        positive_prompt, negative_prompt.strip(), nara_key,
+                        nara_prompt, negative_prompt.strip(), nara_key,
                     )
                     provider = "Bynara"
     except TrustAPIError as exc:

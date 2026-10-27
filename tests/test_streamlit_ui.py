@@ -145,6 +145,39 @@ def test_direct_bynara_requires_its_own_key(monkeypatch):
     assert "NARA_API_KEY" in app.error[0].value
 
 
+def test_default_bynara_prompt_is_shortened_without_losing_requirements(monkeypatch):
+    monkeypatch.setattr("streamlit.secrets", {"NARA_API_KEY": "test-key"})
+    sent = []
+    monkeypatch.setattr("trust_client.generate_image", lambda *a: pytest.fail("Trust tidak dipanggil"))
+    monkeypatch.setattr("trust_client.generate_bynara_image", lambda prompt, negative, key: (
+        sent.append((prompt, negative, key)) or base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/"
+            "lXcAAAAASUVORK5CYII="
+        )
+    ))
+    app = AppTest.from_file(APP_PATH).run(timeout=10)
+    assert len(app.text_area[0].value) > 3500
+    app.radio[0].set_value("Bynara").run(timeout=10)
+    app.button[0].click().run(timeout=10)
+    assert not app.exception
+    assert len(sent) == 1
+    assert len(sent[0][0]) <= 3500
+    assert app.code[0].value == sent[0][0]
+    assert all(item in sent[0][0] for item in ("32 meter", "8 meter", "Ayam broiler", "Cooling pad", "Exhaust fan"))
+    assert sent[0][2] == "test-key"
+
+
+def test_edited_oversized_bynara_prompt_is_not_sent(monkeypatch):
+    monkeypatch.setattr("streamlit.secrets", {"NARA_API_KEY": "test-key"})
+    monkeypatch.setattr("trust_client.generate_bynara_image", lambda *a: pytest.fail("Tidak boleh dikirim"))
+    app = AppTest.from_file(APP_PATH).run(timeout=10)
+    app.radio[0].set_value("Bynara").run(timeout=10)
+    app.text_area[0].set_value("x" * 3501).run(timeout=10)
+    app.button[0].click().run(timeout=10)
+    assert not app.exception
+    assert any("3500 karakter" in item.value for item in app.error)
+
+
 @pytest.mark.parametrize("failure", ["HTTP 503", "Koneksi Trust gagal"])
 def test_trust_failure_uses_bynara_with_separate_negative_prompt(monkeypatch, failure):
     from trust_client import TrustServiceError

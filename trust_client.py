@@ -22,6 +22,7 @@ MAX_API_RESPONSE_BYTES = 28 * 1024 * 1024
 MAX_IMAGE_PIXELS = 16_000_000
 CHUNK_BYTES = 64 * 1024
 MAX_ERROR_RESPONSE_BYTES = 8192
+MAX_NARA_PROMPT_CHARS = 3500
 
 
 class TrustAPIError(RuntimeError):
@@ -329,16 +330,21 @@ def generate_bynara_image(
     if not model:
         raise TrustAPIError("NARA_MODEL harus diisi di Streamlit Secrets (App settings → Secrets di Cloud).")
 
+    if not isinstance(prompt, str) or not prompt.strip() or len(prompt.strip()) > MAX_NARA_PROMPT_CHARS:
+        raise TrustAPIError("Prompt Bynara harus diisi dan maksimal 3500 karakter.")
+    if not isinstance(negative_prompt, str) or len(negative_prompt.strip()) > MAX_NARA_PROMPT_CHARS:
+        raise TrustAPIError("Negative prompt Bynara maksimal 3500 karakter.")
+
     body = {
         "model": model,
-        "prompt": prompt,
+        "prompt": prompt.strip(),
         "n": 1,
+        "size": "2048x2048",
+        "quality": "medium",
+        "response_format": "b64_json",
     }
     if negative_prompt.strip():
         body["negative_prompt"] = negative_prompt.strip()
-    # Ukuran dari contoh Qwen tidak otomatis berlaku untuk model lain.
-    if model == "qwen-image-2.0-pro":
-        body["size"] = "1536x1024"
     try:
         with post_fn(
             endpoint,

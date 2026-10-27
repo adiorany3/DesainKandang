@@ -362,8 +362,8 @@ def test_bynara_uses_separate_negative_prompt_and_key():
     assert seen["url"] == "https://api-images.bynara.id/v1/images/generations"
     assert seen["headers"]["Authorization"] == "Bearer NARA-KEY"
     assert seen["json"] == {
-        "model": "agnes-image-2.0-flash", "prompt": "Gambar kandang", "negative_prompt": "kabut",
-        "n": 1,
+        "model": "gpt-image-2", "prompt": "Gambar kandang", "negative_prompt": "kabut",
+        "n": 1, "size": "2048x2048", "quality": "medium", "response_format": "b64_json",
     }
     assert seen["stream"] is True
     assert seen["timeout"] == 180
@@ -372,7 +372,7 @@ def test_bynara_uses_separate_negative_prompt_and_key():
 def test_bynara_qwen_uses_documented_example_size(monkeypatch):
     monkeypatch.setattr("trust_client.st.secrets", {
         "NARA_ENDPOINT": "https://api-images.bynara.id/v1/images/generations",
-        "NARA_MODEL": "agnes-image-2.1-flash",
+        "NARA_MODEL": "qwen-image-2.0-pro",
     })
     seen = []
 
@@ -382,7 +382,8 @@ def test_bynara_qwen_uses_documented_example_size(monkeypatch):
 
     generate_bynara_image("poster", "blurry", "key", post_fn=fake_post)
     assert seen == [{"model": "qwen-image-2.0-pro", "prompt": "poster", "n": 1,
-                     "negative_prompt": "blurry", "size": "1536x1024"}]
+                     "negative_prompt": "blurry", "size": "2048x2048",
+                     "quality": "medium", "response_format": "b64_json"}]
 
 
 def test_bynara_agnes_uses_minimal_request(monkeypatch):
@@ -397,7 +398,21 @@ def test_bynara_agnes_uses_minimal_request(monkeypatch):
         return FakeResponse(payload={"data": [{"b64_json": base64.b64encode(png_bytes()).decode()}]})
 
     generate_bynara_image("kandang", " ", "key", post_fn=fake_post)
-    assert seen == [{"model": "agnes-image-2.0-flash", "prompt": "kandang", "n": 1}]
+    assert seen == [{"model": "agnes-image-2.0-flash", "prompt": "kandang", "n": 1,
+                     "size": "2048x2048", "quality": "medium", "response_format": "b64_json"}]
+
+
+@pytest.mark.parametrize("prompt, negative, expected", [
+    ("a" * 3501, "", "Prompt Bynara"),
+    ("kandang", "n" * 3501, "Negative prompt Bynara"),
+    ("  ", "", "Prompt Bynara"),
+    ("kandang", None, "Negative prompt Bynara"),
+])
+def test_bynara_rejects_invalid_prompts_before_request(prompt, negative, expected):
+    with pytest.raises(TrustAPIError, match=expected):
+        generate_bynara_image(prompt, negative, "key", post_fn=lambda *a, **k: pytest.fail(
+            "Permintaan tidak boleh dikirim"
+        ))
 
 
 def test_bynara_missing_model_or_key_never_sends(monkeypatch):
