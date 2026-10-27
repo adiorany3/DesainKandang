@@ -420,6 +420,21 @@ def test_bynara_http_error_does_not_echo_response_or_key():
     assert "private prompt" not in str(exc.value)
 
 
+def test_bynara_http_400_shows_only_allowlisted_validation_metadata():
+    response = FakeResponse(status_code=400, payload={"error": {
+        "type": "validation_error", "param": "size", "request_id": "req_SAFE123",
+        "message": "private prompt NARA-KEY",
+    }})
+    with pytest.raises(TrustAPIError) as exc:
+        generate_bynara_image("private prompt", "", "NARA-KEY", post_fn=lambda *a, **k: response)
+    message = str(exc.value)
+    assert "HTTP 400" in message
+    assert "parameter: size" in message
+    assert "req_SAFE123" in message
+    assert "private prompt" not in message
+    assert "NARA-KEY" not in message
+
+
 def test_trust_only_service_failures_are_fallback_eligible():
     for status, expected in ((400, TrustServiceError), (503, TrustServiceError),
                              (401, TrustAPIError), (402, TrustAPIError), (429, TrustAPIError)):

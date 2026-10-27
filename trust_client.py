@@ -345,6 +345,12 @@ def generate_bynara_image(
             stream=True,
         ) as response:
             if response.status_code >= 400:
+                if response.status_code == 400:
+                    detail = _validation_error_detail(response)
+                    raise TrustAPIError(
+                        "Layanan Bynara gagal dengan status HTTP 400" + detail + ". "
+                        "Periksa model dan parameter permintaan yang didukung oleh penyedia."
+                    )
                 raise TrustAPIError(f"Layanan Bynara gagal dengan status HTTP {response.status_code}.")
             raw = _read_limited(response, MAX_API_RESPONSE_BYTES, "Respons API")
     except requests.Timeout as exc:
