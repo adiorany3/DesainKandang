@@ -332,12 +332,13 @@ def generate_bynara_image(
     body = {
         "model": model,
         "prompt": prompt,
-        "negative_prompt": negative_prompt,
         "n": 1,
-        "size": "2048x2048",
-        "quality": "medium",
-        "response_format": "b64_json",
     }
+    if negative_prompt.strip():
+        body["negative_prompt"] = negative_prompt.strip()
+    # Ukuran dari contoh Qwen tidak otomatis berlaku untuk model lain.
+    if model == "qwen-image-2.0-pro":
+        body["size"] = "1536x1024"
     try:
         with post_fn(
             endpoint,
