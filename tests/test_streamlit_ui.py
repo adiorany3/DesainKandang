@@ -109,6 +109,42 @@ def test_generation_sends_edited_prompt(monkeypatch):
     assert app.code[0].value == expected
 
 
+def test_direct_bynara_skips_trust_and_uses_separate_prompts(monkeypatch):
+    monkeypatch.delenv("TRUST_API_KEY", raising=False)
+    monkeypatch.setattr("streamlit.secrets", {"NARA_API_KEY": "nara-key"})
+    sent = []
+
+    def fake_bynara(prompt, negative_prompt, key):
+        sent.append((prompt, negative_prompt, key))
+        return base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/"
+            "lXcAAAAASUVORK5CYII="
+        )
+
+    monkeypatch.setattr("trust_client.generate_image", lambda *args: pytest.fail("Trust tidak dipanggil"))
+    monkeypatch.setattr("trust_client.generate_bynara_image", fake_bynara)
+    app = AppTest.from_file(APP_PATH).run(timeout=10)
+    app.radio[0].set_value("Bynara").run(timeout=10)
+    app.text_area[0].set_value("Gambar kandang sapi").run(timeout=10)
+    app.text_area[1].set_value("Hindari kabut").run(timeout=10)
+    app.button[0].click().run(timeout=10)
+    assert not app.exception
+    assert sent == [("Gambar kandang sapi", "Hindari kabut", "nara-key")]
+    assert "Bynara" in app.success[0].value
+
+
+def test_direct_bynara_requires_its_own_key(monkeypatch):
+    monkeypatch.setenv("TRUST_API_KEY", "trust-key")
+    monkeypatch.setattr("streamlit.secrets", {})
+    monkeypatch.setattr("trust_client.generate_image", lambda *args: pytest.fail("Trust tidak dipanggil"))
+    monkeypatch.setattr("trust_client.generate_bynara_image", lambda *args: pytest.fail("Bynara tidak dipanggil"))
+    app = AppTest.from_file(APP_PATH).run(timeout=10)
+    app.radio[0].set_value("Bynara").run(timeout=10)
+    app.button[0].click().run(timeout=10)
+    assert not app.exception
+    assert "NARA_API_KEY" in app.error[0].value
+
+
 @pytest.mark.parametrize("failure", ["HTTP 503", "Koneksi Trust gagal"])
 def test_trust_failure_uses_bynara_with_separate_negative_prompt(monkeypatch, failure):
     from trust_client import TrustServiceError

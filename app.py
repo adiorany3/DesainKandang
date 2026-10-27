@@ -506,6 +506,11 @@ def main() -> None:
                     st.markdown(f"- {item}")
         st.markdown('<div class="k-section"><strong>05</strong> Buat visual</div>', unsafe_allow_html=True)
         st.caption("Gambar dibuat dari pilihan saat ini dan prompt yang dapat disunting di panel kiri.")
+        image_provider = st.radio(
+            "Penyedia gambar", ("Trust", "Bynara"), horizontal=True,
+            help="Trust dapat mencoba Bynara saat gangguan server/koneksi. Pilih Bynara untuk "
+            "mengirim langsung tanpa mencoba Trust. Setiap permintaan dapat dikenai biaya.",
+        )
         generate_clicked = st.button("Buat gambar konsep", type="primary", use_container_width=True)
 
     st.warning(
@@ -531,8 +536,8 @@ def main() -> None:
 
     st.subheader("Prompt yang digunakan")
     st.code(prompt, language=None)
-    api_key = get_api_key()
-    if not api_key:
+    api_key = get_api_key() if image_provider == "Trust" else get_nara_api_key()
+    if not api_key and image_provider == "Trust":
         st.error(
             "TRUST_API_KEY belum dikonfigurasi. Di Streamlit Community Cloud, buka "
             "App settings → Secrets, simpan TRUST_API_KEY, ENDPOINT, dan MODEL sebagai "
@@ -540,26 +545,38 @@ def main() -> None:
             "Untuk pengembangan lokal, gunakan .streamlit/secrets.toml atau environment variable."
         )
         return
+    if not api_key:
+        st.error(
+            "NARA_API_KEY belum dikonfigurasi. Tambahkan ke App settings → Secrets "
+            "(Cloud) atau .streamlit/secrets.toml (lokal)."
+        )
+        return
 
     try:
         with st.spinner("Membuat gambar konsep…"):
-            try:
-                image_bytes = generate_image(prompt, api_key)
-                provider = "Trust"
-            except TrustServiceError as trust_error:
-                st.warning(f"Permintaan Trust gagal: {trust_error}")
-                nara_key = get_nara_api_key()
-                if not nara_key:
-                    raise TrustAPIError(
-                        "Trust sedang bermasalah dan fallback Bynara belum tersedia: "
-                        "isi NARA_API_KEY di App settings → Secrets (Cloud) atau "
-                        ".streamlit/secrets.toml (lokal)."
-                    ) from None
-                st.info("Trust tidak tersedia. Mencoba Bynara sebagai penyedia cadangan…")
+            if image_provider == "Bynara":
                 image_bytes = generate_bynara_image(
-                    positive_prompt, negative_prompt.strip(), nara_key,
+                    positive_prompt, negative_prompt.strip(), api_key,
                 )
                 provider = "Bynara"
+            else:
+                try:
+                    image_bytes = generate_image(prompt, api_key)
+                    provider = "Trust"
+                except TrustServiceError as trust_error:
+                    st.warning(f"Permintaan Trust gagal: {trust_error}")
+                    nara_key = get_nara_api_key()
+                    if not nara_key:
+                        raise TrustAPIError(
+                            "Trust sedang bermasalah dan fallback Bynara belum tersedia: "
+                            "isi NARA_API_KEY di App settings → Secrets (Cloud) atau "
+                            ".streamlit/secrets.toml (lokal)."
+                        ) from None
+                    st.info("Trust tidak tersedia. Mencoba Bynara sebagai penyedia cadangan…")
+                    image_bytes = generate_bynara_image(
+                        positive_prompt, negative_prompt.strip(), nara_key,
+                    )
+                    provider = "Bynara"
     except TrustAPIError as exc:
         st.error(str(exc))
         return
