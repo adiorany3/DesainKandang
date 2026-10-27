@@ -109,7 +109,7 @@ def test_generation_sends_edited_prompt(monkeypatch):
     assert app.code[0].value == expected
 
 
-@pytest.mark.parametrize("failure", ["HTTP 400", "HTTP 503", "Koneksi Trust gagal"])
+@pytest.mark.parametrize("failure", ["HTTP 503", "Koneksi Trust gagal"])
 def test_trust_failure_uses_bynara_with_separate_negative_prompt(monkeypatch, failure):
     from trust_client import TrustServiceError
 
@@ -154,6 +154,22 @@ def test_trust_auth_error_does_not_trigger_bynara(monkeypatch):
     app.button[0].click().run(timeout=10)
     assert not app.exception
     assert "API key Trust" in app.error[0].value
+
+
+def test_trust_http_400_does_not_trigger_bynara(monkeypatch):
+    from trust_client import TrustAPIError
+
+    monkeypatch.setenv("TRUST_API_KEY", "trust-key")
+    monkeypatch.setattr("streamlit.secrets", {"NARA_API_KEY": "nara-key"})
+    monkeypatch.setattr("trust_client.generate_image", lambda *args: (_ for _ in ()).throw(
+        TrustAPIError("Layanan menolak permintaan (HTTP 400).")))
+    monkeypatch.setattr("trust_client.generate_bynara_image", lambda *args: (_ for _ in ()).throw(
+        AssertionError("Bynara tidak boleh dipanggil")))
+    app = AppTest.from_file(APP_PATH).run(timeout=10)
+    app.button[0].click().run(timeout=10)
+    assert not app.exception
+    assert "HTTP 400" in app.error[0].value
+    assert not any("Mencoba Bynara" in message.value for message in app.info)
 
 
 def test_trust_failure_without_bynara_key_is_clear(monkeypatch):

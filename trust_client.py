@@ -278,10 +278,10 @@ def generate_image(
                 raise TrustAPIError("Batas permintaan API tercapai. Tunggu lalu coba lagi.")
             if response.status_code == 400:
                 detail = _validation_error_detail(response)
-                raise TrustServiceError(
+                raise TrustAPIError(
                     "Layanan menolak permintaan (HTTP 400)"
-                    f"{detail}. Periksa parameter MODEL, prompt, size, quality, "
-                    "dan n serta ketentuan layanan; gunakan ID permintaan untuk dukungan penyedia."
+                    f"{detail}. Permintaan ditolak; periksa konfigurasi dan parameter "
+                    "yang didukung penyedia. Fallback otomatis tidak dijalankan untuk HTTP 400."
                 )
             if response.status_code >= 500:
                 raise TrustServiceError(f"Layanan Trust gagal dengan status HTTP {response.status_code}.")

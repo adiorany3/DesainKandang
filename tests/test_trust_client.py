@@ -135,6 +135,7 @@ def test_http_400_shows_safe_diagnostic_metadata_without_echoing_secrets():
     assert "req_abc123" in message
     assert "TOP-SECRET" not in message
     assert "private prompt" not in message
+    assert not isinstance(exc.value, TrustServiceError)
 
 
 @pytest.mark.parametrize("payload", [
@@ -452,12 +453,12 @@ def test_bynara_http_400_without_param_does_not_claim_model_is_invalid():
 
 
 def test_trust_only_service_failures_are_fallback_eligible():
-    for status, expected in ((400, TrustServiceError), (503, TrustServiceError),
+    for status, expected in ((400, TrustAPIError), (503, TrustServiceError),
                              (401, TrustAPIError), (402, TrustAPIError), (429, TrustAPIError)):
         with pytest.raises(expected) as exc:
             generate_image("prompt", "key", post_fn=lambda *a, **k:
                 FakeResponse(status_code=status, payload={"error": "failed"}))
-        assert isinstance(exc.value, TrustServiceError) is (status in (400, 503))
+        assert isinstance(exc.value, TrustServiceError) is (status == 503)
 
 
 def test_trust_connection_error_is_fallback_eligible_but_timeout_is_not():
