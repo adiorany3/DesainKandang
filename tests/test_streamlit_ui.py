@@ -138,6 +138,7 @@ def test_trust_failure_uses_bynara_with_separate_negative_prompt(monkeypatch, fa
     ]
     assert "Bynara" in app.success[0].value
     assert any("Mencoba Bynara" in message.value for message in app.info)
+    assert any(failure in message.value for message in app.warning)
 
 
 def test_trust_auth_error_does_not_trigger_bynara(monkeypatch):

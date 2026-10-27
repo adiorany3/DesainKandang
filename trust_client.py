@@ -147,7 +147,9 @@ def _validation_error_detail(response: Any) -> str:
     details = []
     if isinstance(error.get("type"), str) and error["type"] in {"validation_error", "bad_request"}:
         details.append("jenis: validasi permintaan")
-    if isinstance(error.get("param"), str) and error["param"] in {"model", "prompt", "size", "quality", "n"}:
+    if isinstance(error.get("param"), str) and error["param"] in {
+        "model", "prompt", "negative_prompt", "size", "quality", "n", "response_format",
+    }:
         details.append(f"parameter: {error['param']}")
     request_id = error.get("request_id")
     if isinstance(request_id, str) and re.fullmatch(r"req_[A-Za-z0-9_-]{1,64}", request_id):
@@ -349,7 +351,9 @@ def generate_bynara_image(
                     detail = _validation_error_detail(response)
                     raise TrustAPIError(
                         "Layanan Bynara gagal dengan status HTTP 400" + detail + ". "
-                        "Periksa model dan parameter permintaan yang didukung oleh penyedia."
+                        "Penyebab pastinya tidak tersedia dari metadata respons; "
+                        "bisa berupa validasi permintaan atau penolakan konten. "
+                        "Jangan ulangi permintaan yang sama terus-menerus."
                     )
                 raise TrustAPIError(f"Layanan Bynara gagal dengan status HTTP {response.status_code}.")
             raw = _read_limited(response, MAX_API_RESPONSE_BYTES, "Respons API")

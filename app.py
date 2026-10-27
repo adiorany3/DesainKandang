@@ -546,7 +546,8 @@ def main() -> None:
             try:
                 image_bytes = generate_image(prompt, api_key)
                 provider = "Trust"
-            except TrustServiceError:
+            except TrustServiceError as trust_error:
+                st.warning(f"Permintaan Trust gagal: {trust_error}")
                 nara_key = get_nara_api_key()
                 if not nara_key:
                     raise TrustAPIError(

@@ -435,6 +435,22 @@ def test_bynara_http_400_shows_only_allowlisted_validation_metadata():
     assert "NARA-KEY" not in message
 
 
+@pytest.mark.parametrize("field", ["negative_prompt", "response_format"])
+def test_bynara_http_400_can_identify_other_request_fields(field):
+    with pytest.raises(TrustAPIError) as exc:
+        generate_bynara_image("prompt", "", "key", post_fn=lambda *a, **k:
+            FakeResponse(status_code=400, payload={"error": {"param": field}}))
+    assert f"parameter: {field}" in str(exc.value)
+
+
+def test_bynara_http_400_without_param_does_not_claim_model_is_invalid():
+    with pytest.raises(TrustAPIError) as exc:
+        generate_bynara_image("prompt", "", "key", post_fn=lambda *a, **k:
+            FakeResponse(status_code=400, payload={"error": {"type": "validation_error"}}))
+    assert "Penyebab pastinya tidak tersedia" in str(exc.value)
+    assert "model" not in str(exc.value)
+
+
 def test_trust_only_service_failures_are_fallback_eligible():
     for status, expected in ((400, TrustServiceError), (503, TrustServiceError),
                              (401, TrustAPIError), (402, TrustAPIError), (429, TrustAPIError)):
