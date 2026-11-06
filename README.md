@@ -15,6 +15,8 @@ Aplikasi Streamlit berbahasa Indonesia untuk membuat gambar konsep kandang peter
 - Menggunakan layanan Trust untuk menghasilkan gambar, dengan Bynara sebagai penyedia cadangan opsional.
 - Mendukung respons gambar `b64_json` maupun URL.
 - Preview dan unduhan PNG.
+- Lokasi exhaust fan dikunci pada dinding ujung belakang yang membentang sepanjang lebar kandang, bukan dinding samping. Pandangan dari sudut belakang memperlihatkan pemasangannya; perangkat di ujung depan boleh tertutup perspektif, bukan dipindahkan demi terlihat. Pembaruan template menyusun ulang prompt pada sesi aktif, termasuk mengganti suntingan prompt sebelumnya.
+- Arahan exhaust fan pada prompt utama maupun ringkasan Bynara menjaga skala modul terhadap bidang dinding, ruang untuk struktur, pemasangan bingkai, dan perspektif rotor. Negative prompt menolak kipas sebesar fasad dan efek fisheye. Jumlah dan diameter yang terlihat tetap ilustrasi, bukan hasil perhitungan ventilasi; hasil gambar perlu diperiksa ulang.
 - Pesan kesalahan aman untuk konfigurasi, autentikasi, kredit, rate limit, jaringan, respons rusak, dan gambar invalid.
 
 ## Persyaratan

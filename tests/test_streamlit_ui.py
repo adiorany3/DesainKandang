@@ -162,6 +162,11 @@ def test_default_bynara_prompt_is_shortened_without_losing_requirements(monkeypa
     assert not app.exception
     assert len(sent) == 1
     assert len(sent[0][0]) <= 3500
+    assert "lebih kecil dari lebar dan tinggi bidang dinding" in sent[0][0]
+    assert "rotor tampak elips" in sent[0][0]
+    assert "tidak pada kedua dinding samping" in sent[0][0]
+    assert "sudut belakang" in sent[0][0]
+    assert "kipas raksasa sebesar fasad" in sent[0][1]
     assert app.code[0].value == sent[0][0]
     assert all(item in sent[0][0] for item in ("32 meter", "8 meter", "Ayam broiler", "Cooling pad", "Exhaust fan"))
     assert sent[0][2] == "test-key"

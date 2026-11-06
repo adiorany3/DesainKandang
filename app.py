@@ -132,11 +132,37 @@ NEGATIVE_PROMPT = (
     "peralatan, ternak berdesakan, lantai kotor atau basah, pakan dan air tidak terjangkau, "
     "struktur melayang, proporsi bangunan tidak sesuai dimensi, perspektif terdistorsi, "
     "peralatan otomatis tambahan yang tidak dipilih, aliran ventilasi terhalang, detail kabur, artefak gambar, "
-    "watermark, teks dan label palsu."
+    "watermark, teks dan label palsu, kipas raksasa sebesar fasad, bingkai kipas melewati atap, "
+    "kipas menutupi kolom atau pintu, ukuran modul kipas tidak konsisten, efek fisheye, "
+    "exhaust fan di dinding samping, exhaust fan di tengah lantai, exhaust fan di atap."
 )
 NEGATIVE_HYPERREALISM = (
     " Tampilan kartun, sketsa, ilustrasi datar, tekstur plastik, pencahayaan "
     "berlebihan, saturasi tidak alami, dan efek fantasi."
+)
+
+
+EXHAUST_FAN_INSTRUCTION = (
+    " Exhaust fan berupa kipas aksial berbingkai dengan bilah dan kisi pelindung "
+    "yang terpasang menembus dinding ujung belakang sisi buang, bukan pintu, jendela, "
+    "atau kipas berdiri bebas di dalam kandang. Bingkai persegi menempel pada bidang dinding, "
+    "dengan rotor lingkaran di dalam bingkai; sumbu kipas tegak lurus dinding. "
+    "Skala setiap modul harus lebih kecil dari lebar dan tinggi bidang dinding tempatnya terpasang; "
+    "sisakan bidang dinding serta ruang untuk kolom, balok, ambang bawah dan sambungan di sekeliling bingkai. "
+    "Jangan memperbesar kipas hingga memenuhi fasad, memotong kolom, menembus atap atau menutup pintu. "
+    "Jika terlihat beberapa modul, gunakan ukuran fisik yang sama dan susunan teratur tanpa tumpang tindih. "
+    "Ikuti perspektif bidang dinding: rotor tampak elips saat dilihat miring, bukan lingkaran frontal "
+    "yang ditempel pada fasad miring. Jangan memakai fisheye atau membesarkan kipas dekat kamera. "
+    "Kunci lokasi: arah panjang kandang adalah depan-belakang; dinding ujung belakang membentang "
+    "sepanjang lebar kandang dan tegak lurus arah panjang. Semua exhaust fan hanya pada dinding "
+    "ujung belakang tersebut, tidak pada kedua dinding samping yang mengikuti panjang kandang, "
+    "tidak di atap dan tidak di tengah lantai. Tampilkan satu pandangan tiga-perempat dari luar "
+    "sudut belakang: dinding ujung dengan kipas dan satu dinding samping terlihat. "
+    "Pertahankan dinding ujung belakang utuh agar bingkai kipas terbukti terpasang pada dinding. "
+    "Perangkat di ujung depan boleh tersembunyi oleh perspektif; jangan dipindah ke samping "
+    "atau diduplikasi agar terlihat. Tanpa inset kipas. "
+    "Jumlah dan diameter kipas hanya ilustrasi, bukan spesifikasi; verifikasi melalui perhitungan "
+    "ventilasi dan dimensi produk sebelum desain teknis."
 )
 
 
@@ -206,7 +232,7 @@ def build_prompt(
     if "Cooling pad" in features:
         ventilation += (
             " Cooling pad adalah deret panel selulosa sarang lebah basah dalam bingkai "
-            "pada dinding ujung pendek sisi masuk udara; tampakkan permukaan panel "
+            "pada dinding ujung depan yang membentang sepanjang lebar kandang, sisi masuk udara; tampakkan permukaan panel bila terlihat "
             "di sisi luar dan talang air di bawahnya, bukan pintu, kipas, atau panel "
             "yang berdiri sendiri di tengah kandang. Jika ada tanda atau panah "
             "bertuliskan 'Cooling pad', ujung panah harus tepat menyentuh panel "
@@ -215,11 +241,7 @@ def build_prompt(
             "tanda dan panah tetapi tetap tampilkan panelnya."
         )
     if "Exhaust fan" in features:
-        ventilation += (
-            " Exhaust fan berupa kipas aksial berbingkai dengan bilah dan kisi pelindung "
-            "yang terpasang menembus dinding ujung pendek sisi buang, bukan pintu, "
-            "jendela, atau kipas berdiri bebas di dalam kandang."
-        )
+        ventilation += EXHAUST_FAN_INSTRUCTION
     if "Cooling pad" in features and "Exhaust fan" in features:
         ventilation += (
             " Tempatkan pad dan kipas di ujung berlawanan agar aliran udara "
@@ -263,8 +285,7 @@ def build_prompt(
     style_instruction = STYLE_INSTRUCTIONS[style]
     composition_instruction = (
         " Gunakan satu sudut pandang isometrik potongan atap: sebagian atap diangkat hanya secara visual, "
-        "tiga sisi bangunan tetap terbaca, seluruh panjang lantai dan setiap fitur yang dipilih tampak tanpa "
-        "tertutup atap atau dinding."
+        "dua fasad yang bersebelahan tetap terbaca; jangan hilangkan dinding tempat perangkat terpasang."
         if style == "Ilustrasi isometrik teknis" else
         " Tampilkan bangunan dari sudut pandang arsitektur yang paling membantu membaca bentuk dan tata letak; "
         "potongan atap hanya digunakan sebagai inset atau bukaan visual kecil bila diperlukan, bukan sebagai "
@@ -286,7 +307,8 @@ def build_prompt(
         "yang memutus aliran udara. Perlihatkan hanya peralatan otomatis yang dipilih; "
         "sarana dasar pakan dan air serta fasilitas kesejahteraan tetap harus tampak. "
         f"{composition_instruction} "
-        "Pastikan setiap fitur yang dipilih tampak dan dapat dibaca tanpa mengubah lokasi fisiknya. "
+        "Usahakan setiap fitur yang dipilih tampak hanya bila garis pandang memungkinkan; "
+        "posisi fisik yang benar lebih penting daripada menampilkan semua fitur sekaligus. "
         "Pertahankan dinding sebagai batas fisik yang jelas: peralatan ternak di dalam, "
         "perangkat eksterior di luar; jangan pindahkan fitur ke tengah kandang demi "
         "memperlihatkannya. Jangan tambahkan bangunan, orang, atau perangkat "
@@ -404,15 +426,16 @@ def bynara_prompt(prompt: str, generated_prompt: str, length_m: float, width_m: 
     animal = custom_livestock.strip() if livestock == "Lainnya" else livestock
     selected = ", ".join(features) if features else "tanpa peralatan tambahan"
     airflow = (
-        "Cooling pad di dinding ujung masuk udara dan exhaust fan di ujung berlawanan. "
+        "Cooling pad di dinding ujung depan masuk udara dan exhaust fan di ujung berlawanan, belakang. "
         if "Cooling pad" in features and "Exhaust fan" in features else ""
     )
     security = "Ruang biosekuriti di luar dinding samping. " if "Zona biosekuriti" in features else ""
+    exhaust = EXHAUST_FAN_INSTRUCTION if "Exhaust fan" in features else ""
     condensed = (
         f"Gambar konsep kandang close house untuk {animal}, panjang {length_m:g} meter, "
         f"lebar {width_m:g} meter (luas {length_m * width_m:g} m²). "
         f"Bentuk dan skala sesuai dimensi. Fitur pilihan: {selected}. "
-        f"{airflow}{security}"
+        f"{airflow}{security}{exhaust} "
         "Jalur pakan dan air terpisah; peralatan ternak di dalam. "
         "Sediakan akses pakan dan air bersih, ruang gerak dan "
         "istirahat yang sesuai spesies, lantai aman dan bersih, ventilasi serta cahaya wajar. "
@@ -467,7 +490,8 @@ def main() -> None:
         except ValueError as exc:
             generated_prompt = ""
             st.error(str(exc))
-        source = (length_m, width_m, livestock, custom_livestock, tuple(features), style)
+        source = (length_m, width_m, livestock, custom_livestock, tuple(features), style,
+                  generated_prompt, NEGATIVE_PROMPT, NEGATIVE_HYPERREALISM)
         source_id = hashlib.sha256(repr(source).encode()).hexdigest()
         if st.session_state.get("prompt_source") != source_id:
             st.session_state["prompt_text"] = generated_prompt

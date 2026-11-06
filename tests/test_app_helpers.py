@@ -3,7 +3,8 @@ import pytest
 from app import (
     FEATURE_OPTIONS, LIVESTOCK_OPTIONS, MAX_PROMPT_CHARS, NEGATIVE_HYPERREALISM,
     NEGATIVE_PROMPT, STYLE_OPTIONS, build_prompt, calculate_area, compose_image_prompt,
-    build_planning_brief, get_api_key, validate_dimensions, validate_prompt,
+    build_planning_brief, bynara_prompt, EXHAUST_FAN_INSTRUCTION,
+    get_api_key, validate_dimensions, validate_prompt,
 )
 
 
@@ -239,6 +240,41 @@ def test_prompt_does_not_invent_unselected_ventilation_equipment():
     assert "cooling pad" not in prompt.lower()
     assert "exhaust fan" not in prompt.lower()
     assert "pintu" in prompt.lower()
+
+
+@pytest.mark.parametrize("style", STYLE_OPTIONS)
+@pytest.mark.parametrize("features", [[], ["Exhaust fan"], list(FEATURE_OPTIONS)])
+def test_fan_scale_survives_bynara_condensation(style, features):
+    prompt = build_prompt(32, 8, "Ayam broiler", features, style)
+    condensed = bynara_prompt(prompt, prompt, 32, 8, "Ayam broiler", "", features, style)
+    assert len(condensed) <= 3500
+    for text in (prompt, condensed):
+        assert (EXHAUST_FAN_INSTRUCTION in text) == ("Exhaust fan" in features)
+        if "Exhaust fan" not in features:
+            assert "exhaust fan" not in text.lower()
+
+
+def test_fan_instruction_defines_scale_mounting_and_perspective_without_sizing_claims():
+    assert "lebih kecil dari lebar dan tinggi bidang dinding" in EXHAUST_FAN_INSTRUCTION
+    assert "ukuran fisik yang sama" in EXHAUST_FAN_INSTRUCTION
+    assert "rotor tampak elips" in EXHAUST_FAN_INSTRUCTION
+    assert "bukan spesifikasi" in EXHAUST_FAN_INSTRUCTION
+    assert "kipas raksasa sebesar fasad" in NEGATIVE_PROMPT
+
+
+@pytest.mark.parametrize("style", STYLE_OPTIONS)
+def test_exhaust_location_and_camera_are_consistent_in_both_prompts(style):
+    features = ["Cooling pad", "Exhaust fan"]
+    prompt = build_prompt(32, 8, "Ayam broiler", features, style)
+    condensed = bynara_prompt(prompt, prompt, 32, 8, "Ayam broiler", "", features, style)
+    for text in (prompt, condensed):
+        assert "dinding ujung belakang membentang" in text
+        assert "tidak pada kedua dinding samping" in text
+        assert "sudut belakang" in text
+        assert "boleh tersembunyi oleh perspektif" in text
+        assert "Tanpa inset kipas" in text
+    assert "tiga sisi bangunan" not in prompt
+    assert "posisi fisik yang benar lebih penting" in prompt
 
 
 def test_prompt_does_not_claim_elongated_for_near_square_plan():
